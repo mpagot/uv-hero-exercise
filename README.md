@@ -15,6 +15,14 @@ dev dependency group — all via `uv add` (no hand-editing of
 make check
 ```
 
-`make check` passes when `click` appears under `[project] dependencies`
-AND a dev group lists `ruff` or `ty`. Full instructions live in
-`../EXERCISES.md §4`.
+`make check` verifies, in order:
+
+1. `click` appears under `[project.dependencies]`
+2. A `[dependency-groups]` dev list contains `ruff` or `ty`
+3. `import click` actually works inside the project venv
+4. `.venv/` exists (uv add syncs as it goes)
+5. `uv.lock` exists (uv add rewrites the lockfile after each edit)
+
+`make clean` resets the branch back to the empty-deps seed (drops
+`.venv/`, `uv.lock`, and undoes your `pyproject.toml` edits). Full
+instructions live in `../EXERCISES.md §4`.
