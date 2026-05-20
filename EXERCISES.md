@@ -129,15 +129,15 @@ cat README.md
    ls -a demo
    cat demo/pyproject.toml
    cat demo/.python-version
-   cat demo/hello.py
+   cat demo/main.py
    ```
 2. Run the generated script (creates `.venv` on first call):
    ```bash
-   (cd demo && uv run hello.py)
+   (cd demo && uv run main.py)
    ```
-3. Try the pinned variant:
+3. Force a specific Python with `-p` (otherwise uv uses your default):
    ```bash
-   uv init demo-pinned -p 3.13
+   uv init -p 3.11 demo-pinned
    diff demo/pyproject.toml demo-pinned/pyproject.toml
    ```
 4. Self-grade:
@@ -145,8 +145,10 @@ cat README.md
    make check
    ```
 
-**Expected:** `demo-pinned/pyproject.toml` has `requires-python = ">=3.13"`;
-`demo/` uses whatever your default is.
+**Expected:** `demo-pinned/pyproject.toml` has `requires-python = ">=3.11"`;
+`demo/` uses whatever your default is. `make check` prints three ✔ lines
+(pyproject + .python-version + main.py) plus the greeting that
+`uv run main.py` produced.
 
 **Stretch:** `uv init --lib demo-lib` — `--lib` creates a `src/` layout
 suited for publishing.
