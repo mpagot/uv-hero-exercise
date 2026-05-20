@@ -7,7 +7,7 @@ Python), then **manually** pin it for this project with a
 ## What you have on this branch
 
 Just this README and a `Makefile`. No `pyproject.toml`, no
-`.python-version` — you'll create the version file yourself with `echo`.
+`.python-version` — you'll create the version file yourself with `echo` or `uv python pin <version>`.
 
 ## Useful `uv python` subcommands to explore
 
