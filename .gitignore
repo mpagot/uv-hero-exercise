@@ -6,3 +6,8 @@ __pycache__/
 .ruff_cache/
 .ty_cache/
 *.pyc
+pyproject.toml
+main.py
+.python-version
+uv.lock
+demo/

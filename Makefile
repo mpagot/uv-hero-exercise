@@ -7,6 +7,14 @@ help: ## show this help
 clean: ## remove gitignored files (.venv, caches, dist)
 	git clean -fdX
 
-check: ## verify a pyproject.toml was created
-	@find . -name pyproject.toml -not -path './.git/*' | grep -q . || { echo "✘ no pyproject.toml found — try: uv init"; exit 1; }
-	@echo "✔ pyproject.toml present: $$(find . -name pyproject.toml -not -path './.git/*' | head -1)"
+check: ## verify uv init created a runnable project (pyproject + .python-version + main.py)
+	@PROJ=$$(find . -maxdepth 3 -name pyproject.toml -not -path './.git/*' -print -quit); \
+	  test -n "$$PROJ" || { echo "✘ no pyproject.toml found — try: uv init demo"; exit 1; }; \
+	  PROJDIR=$$(dirname "$$PROJ"); \
+	  echo "✔ pyproject.toml at $$PROJ"; \
+	  test -f "$$PROJDIR/.python-version" || { echo "✘ $$PROJDIR/.python-version missing — uv init normally creates one"; exit 1; }; \
+	  echo "✔ .python-version present ($$(cat $$PROJDIR/.python-version))"; \
+	  test -f "$$PROJDIR/main.py" || { echo "✘ $$PROJDIR/main.py missing — uv init normally creates a hello main.py"; exit 1; }; \
+	  OUT=$$(cd "$$PROJDIR" && uv run --quiet main.py 2>&1) || { echo "✘ uv run main.py failed: $$OUT"; exit 1; }; \
+	  test -n "$$OUT" || { echo "✘ uv run main.py produced no output"; exit 1; }; \
+	  echo "✔ uv run main.py prints: $$OUT"
