@@ -25,9 +25,19 @@ make check
 
 `make check` passes when:
 - `uv run uv-hero hello` prints `Hello, World!`
+- `.venv/bin/ruff` and `.venv/bin/ty` exist (no system-PATH shadow — see below)
 - `uv run ruff check` is clean
 - `uv run ty check --error all` is clean
 - **both** `ruff` and `ty` appear in `pyproject.toml` (this is the exec_7 twist)
+
+## Why the diagnose step?
+
+`uv run TOOL` does NOT force `TOOL` to come from `.venv/`. If `.venv/bin/ruff`
+is missing but `/usr/bin/ruff` exists (openSUSE ships `python311-ruff` as a
+system package), `uv run ruff` will silently use the system one and lint will
+pass for the wrong reason. The `diagnose` target verifies the tool lives in
+the project's venv, and if not, surfaces the shadowing copy via `which` +
+`rpm -qf`. Run `make diagnose` standalone to inspect.
 
 ## `uvx` (exec_6) vs `uv add --dev` (exec_7)
 
