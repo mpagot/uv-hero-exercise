@@ -1,8 +1,8 @@
 # uv hero — Exercises
 
 Hands-on companion to the [uv hero](https://docs.astral.sh/uv/) workshop.
-Each exercise lives on its own branch of this repo. The workshop runs
-"continuous interleave" — after each topic on the slides you get ~5 min to
+Each exercise lives on its own branch of this repo.
+The workshop runs "continuous interleave": after each topic explanation you get ~5 min to
 do the matching exercise.
 
 ## How this scaffold works
