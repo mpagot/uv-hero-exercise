@@ -72,32 +72,40 @@ git checkout exec_1
 cat README.md
 ```
 
-**Goal:** see that `uv` can install and pin Python interpreters without
-touching the system Python.
+**Goal:** see that `uv` can install Python interpreters without touching
+the system Python, then **manually** pin one for this directory with a
+`.python-version` file.
 
 **Steps:**
 
-1. List what's available vs. installed:
+1. Tour the `uv python` subcommands — list, locate, install, upgrade:
    ```bash
-   uv python list
+   uv python list                  # versions available + already installed
+   uv python dir                   # where uv keeps managed interpreters
+   uv python install 3.13          # downloads CPython 3.13, no root
+   uv python upgrade               # bump installed CPython to latest patch
+   uv python find 3.13             # resolve the path uv would use
    ```
-2. Install a specific version (downloads to `~/.local/share/uv/python/`):
-   ```bash
-   uv python install 3.13
-   ```
-3. Confirm nothing leaked into the system:
+2. Confirm nothing leaked into the system:
    ```bash
    which python3
    rpm -q python313 2>/dev/null || echo "not from zypper — good"
    ls ~/.local/share/uv/python/
+   ```
+3. Manually pin this directory to 3.13 (no `uv init`, no `pyproject.toml`
+   — just the version file):
+   ```bash
+   echo "3.13" > .python-version
+   uv python pin                   # uv prints the pin it just read
    ```
 4. Self-grade:
    ```bash
    make check
    ```
 
-**Expected:** `make check` prints ✔; `uv python list` shows 3.13 as
-installed; system `python3` is unchanged.
+**Expected:** `make check` prints four ✔ lines (uv on PATH, pin file
+exists, the pinned version is installed, `uv python pin` reads it).
+System `python3` is unchanged.
 
 **Stretch:** `uv python install 3.11 3.12` — install two more in one call.
 The second run is instant (cached).
