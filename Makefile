@@ -4,25 +4,30 @@
 help: ## show this help
 	@awk 'BEGIN {FS=":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-run: ## run the CLI via uv (auto-syncs first)
-	uv run uv-hero hello --name=workshop
+run: ## run the script via uv (assumes you already ran: uv add click)
+	uv run hello.py --name=workshop
 
-clean: ## remove gitignored files (.venv, caches, dist)
-	git clean -fdX
+clean: ## reset the branch (drop .venv/uv.lock/sentinels/caches AND restore pyproject.toml)
+	@git clean -fdX
+	@git restore pyproject.toml
 
-check: ## verify .venv exists, then three uv run patterns: console script, arg passthrough, ephemeral --with
-	@test -d .venv || { echo "✘ no .venv/ here yet — you haven't materialised the env. Run: uv run uv-hero hello   (or: uv sync)"; exit 1; }
-	@echo "✔ .venv/ present (you ran uv sync or uv run at least once)"
-	@uv run --quiet uv-hero hello 2>/dev/null | grep -q "Hello, World" \
-	  || { echo "✘ default greeting failed — try: uv run uv-hero hello"; exit 1; }
-	@echo "✔ uv run uv-hero hello → 'Hello, World!'"
-	@uv run --quiet uv-hero hello --name=workshop 2>/dev/null | grep -q "Hello, workshop" \
-	  || { echo "✘ arg pass-through failed — try: uv run uv-hero hello --name=workshop"; exit 1; }
-	@echo "✔ uv run uv-hero hello --name=workshop → 'Hello, workshop!'"
-	@uv run --quiet --with rich python3 -c "from rich import print; print('ok')" >/dev/null 2>&1 \
-	  || { echo "✘ --with rich failed — try: uv run --with rich python3 -c 'from rich import print; print(\"hi\")'"; exit 1; }
-	@echo "✔ uv run --with rich python3 ... → ephemeral dep ran"
-	@if grep -q '"rich' pyproject.toml; then \
-	  echo "✘ rich leaked into pyproject.toml — --with must NOT modify dependencies"; exit 1; \
-	fi
-	@echo "✔ rich did NOT leak into pyproject.toml"
+check: ## verify .venv + uv.lock, demo raw python (fails w/o uv add), verify sentinels, finally `uv run hello.py`
+	@test -d .venv || { echo "✘ no .venv/ here yet — you haven't materialised the env. Run: uv add click"; exit 1; }
+	@echo "✔ .venv/ present"
+	@test -f uv.lock || { echo "✘ uv.lock missing — uv add normally writes it"; exit 1; }
+	@echo "✔ uv.lock present"
+	.venv/bin/python3.13 hello.py
+	@test -f .hello_world \
+	  || { echo "✘ .hello_world missing — run: uv run hello.py   (the script drops a sentinel so this check knows YOU ran it)"; exit 1; }
+	@grep -q "Hello, World" .hello_world \
+	  || { echo "✘ .hello_world has unexpected content — re-run: uv run hello.py"; exit 1; }
+	@echo "✔ .hello_world present"
+	@test -f .hello_workshop \
+	  || { echo "✘ .hello_workshop missing — run: uv run hello.py --name=workshop"; exit 1; }
+	@grep -q "Hello, workshop" .hello_workshop \
+	  || { echo "✘ .hello_workshop has unexpected content — re-run: uv run hello.py --name=workshop"; exit 1; }
+	@echo "✔ .hello_workshop present"
+	@grep -E '^\s*"click' pyproject.toml >/dev/null \
+	  || { echo "✘ click not in pyproject.toml — use: uv add click   (not: uv pip install click)"; exit 1; }
+	@echo "✔ click listed in [project.dependencies]"
+	uv run hello.py

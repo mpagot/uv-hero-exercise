@@ -6,3 +6,5 @@ __pycache__/
 .ruff_cache/
 .ty_cache/
 *.pyc
+uv.lock
+.hello_*
