@@ -1,0 +1,6 @@
+[project]
+name = "uv-hero"
+version = "0.1.0"
+description = "Hello-world CLI built during the uv workshop."
+requires-python = ">=3.13"
+dependencies = []
