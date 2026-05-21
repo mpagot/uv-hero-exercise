@@ -31,9 +31,11 @@ try the exercise, not before.
 | `exec_1` | `uv python install` — managed interpreters | ~3 min |
 | `exec_2` | `uv init` — bootstrap a project | ~5 min |
 | `exec_3` | `uv sync` — materialise the venv from the lockfile | ~5 min |
-| `exec_4` | `uv add` / `uv add --dev` — edit dependencies | ~5 min |
-| `exec_5` | `uv run` — execute without activating the venv | ~5 min |
-| `exec_6` | `uvx` — run tools without installing them | ~5 min |
+| `exec_4` | `uv add` — edit dependencies through uv | ~5 min |
+| `exec_5` | `uv run` — execute scripts without activating the venv | ~5 min |
+| `exec_6` | `uvx` — lint & typecheck without declaring the tools | ~5 min |
+| `exec_7` | `uv add --dev` — declare tools as project deps (vs §6) | ~5 min |
+| `exec_8` | `uv build` + `uv pip install -e .` — package the CLI | ~5 min |
 | `full_solution` | reference: the finished click CLI | — |
 
 ---
@@ -248,34 +250,47 @@ git checkout exec_5
 cat README.md
 ```
 
-**Goal:** execute the project's CLI without activating its virtualenv.
+**Goal:** execute a script with its dependencies without ever activating
+a virtualenv — and prove to yourself you did it. The check refuses to
+pass unless YOU actually invoked the script (sentinel files prove it).
 
 **Steps:**
 
-1. Run the installed console script (auto-syncs first):
+1. Inspect what the branch ships: a top-level `hello.py` (not a package)
+   plus a `pyproject.toml` with **no runtime deps**. `hello.py` imports
+   `click`, so `uv sync` alone doesn't help.
    ```bash
-   uv run uv-hero hello
-   uv run uv-hero hello --name="$USER"
+   cat hello.py
+   grep dependencies pyproject.toml
    ```
-2. Run an ephemeral package that is NOT a project dep:
+2. Add the dep, then run via `uv run` — twice, with different names:
    ```bash
-   uv run --with rich python -c \
+   uv add click
+   uv run hello.py
+   uv run hello.py --name=workshop
+   ```
+3. Note the sentinel files `hello.py` dropped on each call:
+   ```bash
+   ls .hello_*           # .hello_world  .hello_workshop
+   ```
+4. Bonus — ephemeral dep with `--with` that does NOT leak into
+   `pyproject.toml`:
+   ```bash
+   uv run --with rich python3 -c \
      "from rich import print; print('[bold green]hi[/]')"
-   ```
-3. Confirm `rich` did NOT get added to your project:
-   ```bash
    grep rich pyproject.toml || echo "not in pyproject — correct"
    ```
-4. Self-grade:
+5. Self-grade:
    ```bash
    make check
    ```
 
-**Expected:** step 1 prints `Hello, World!` then `Hello, <you>!`. Step 3
-confirms `rich` stayed ephemeral.
+**Expected:** `Hello, World!` then `Hello, workshop!`; both
+`.hello_world` and `.hello_workshop` sentinels on disk; `rich` did NOT
+land in `pyproject.toml`.
 
-**Stretch:** `uv run --python 3.11 uv-hero hello` — switch interpreter for
-a single invocation; `uv` materialises a parallel `.venv` for 3.11.
+**Stretch:** `uv run --python 3.11 hello.py` — switch interpreter for a
+single invocation; `uv` materialises a parallel `.venv` for 3.11.
 
 ---
 
@@ -286,42 +301,160 @@ git checkout exec_6
 cat README.md
 ```
 
-**Goal:** run developer tools without polluting the project (or your
-system).
+**Goal:** lint + typecheck a real source file using tools that are NOT
+declared in your project. `uvx` fetches them on demand into a throwaway
+env and leaves `pyproject.toml` untouched.
+
+The branch ships the click CLI from §5 with **two deliberate bugs** in
+`src/uv_hero/cli.py` — one that `ruff` will flag, one that `ty` will
+flag.
 
 **Steps:**
 
-1. One-shot tool execution:
+1. Sanity-check the CLI still runs:
    ```bash
-   uvx cowsay -t "hi from uv"
+   uv run uv-hero hello
    ```
-2. Lint the current project — no project setup needed:
+2. Run the tools via `uvx` and read the diagnostics:
    ```bash
-   uvx ruff check .
+   uvx ruff check src/uv_hero/cli.py            # one F401
+   uvx ty check --error all src/uv_hero/cli.py  # one invalid-return-type
    ```
-3. Typecheck via Astral's type checker `ty`:
+3. Edit `src/uv_hero/cli.py` until both report `All checks passed!`.
+   Re-run the two commands after each edit.
+4. Confirm nothing leaked into your project deps:
    ```bash
-   uvx ty check src/
+   grep -E '"(ruff|ty)' pyproject.toml && echo "leaked!" || echo "clean"
    ```
-4. Pin the Python the tool runs under:
-   ```bash
-   uvx --python 3.11 python -V
-   ```
-5. When the package name differs from the command name:
-   ```bash
-   uvx --from httpie http GET httpbin.org/get
-   ```
-6. Self-grade:
+5. Self-grade:
    ```bash
    make check
    ```
 
-**Expected:** every command works without touching `pyproject.toml` and
-without leaving artefacts in your dir.
+**Expected:** both `uvx` commands print `All checks passed!` once
+`cli.py` is fixed; `pyproject.toml` is unchanged from the seed.
 
-**Stretch:** `time uvx cowsay -t hi` twice — the second run is a cache
-hit, sub-100 ms. Or `uv tool install ruff` to make it permanent as just
-`ruff`.
+**Stretch:** `time uvx ruff --version` twice — the second run is a cache
+hit, sub-100 ms. Or `uv tool install ruff` to make it permanent as
+just `ruff`.
+
+---
+
+## §7 — `uv add --dev`   ⏱ ~5 min
+
+```bash
+git checkout exec_7
+cat README.md
+```
+
+**Goal:** same broken CLI as §6, but this time declare `ruff` + `ty` as
+**project-tracked dev deps** so every contributor and your CI get the
+exact same versions, locked in `uv.lock`.
+
+**Steps:**
+
+1. Add ruff + ty to the dev group:
+   ```bash
+   uv add --dev ruff ty
+   ```
+2. Confirm they landed in `[dependency-groups]` (NOT in
+   `[project.dependencies]` — that would mean you forgot `--dev`):
+   ```bash
+   grep -A5 'dependency-groups' pyproject.toml
+   ```
+3. Now drive the tools via `uv run` (they come from `.venv/` this time,
+   not from a `uvx` throwaway env):
+   ```bash
+   uv run ruff check src/uv_hero/cli.py
+   uv run ty check --error all src/uv_hero/cli.py
+   ```
+4. Fix `src/uv_hero/cli.py` until both pass.
+5. Self-grade:
+   ```bash
+   make check
+   ```
+
+**Expected:** `[dependency-groups]` exists with `ruff` and `ty`;
+`uv.lock` updated atomically; both checks clean.
+
+**Gotcha — `make diagnose`:** if `.venv/bin/ruff` is missing but
+`/usr/bin/ruff` is on `PATH` (openSUSE ships `python311-ruff`), `uv run
+ruff` will silently use the system copy and lint passes for the wrong
+reason. `make diagnose` catches this and names the offending package
+(`rpm -qf`). Run it standalone any time you're unsure which `ruff` is
+firing.
+
+**`uvx` (§6) vs `uv add --dev` (§7):** `uvx` is right for ad-hoc tools
+you don't want tracked. `uv add --dev` is right for tools your team and
+CI depend on — locked into `uv.lock`, reproducible everywhere.
+
+**Stretch:** run `uv add ruff` (no `--dev`) by mistake, then `make
+check`. The check tells you exactly how to recover
+(`uv remove ruff && uv add --dev ruff`). Same exercise also catches the
+double-add case (ruff in both `[project.dependencies]` AND
+`[dependency-groups].dev`).
+
+---
+
+## §8 — `uv build` + `uv pip install -e .`   ⏱ ~5 min
+
+```bash
+git checkout exec_8
+cat README.md
+```
+
+**Goal:** turn the click CLI into a real distributable package (sdist +
+wheel) with `uv build`, then install it editable into a venv and run
+the entry-point.
+
+**Steps:**
+
+1. Build the package — pay attention to the warning uv prints:
+   ```bash
+   uv build
+   ls dist/
+   ```
+   You'll see:
+   > warning: `build_system.requires = ["uv_build>=0.5"]` is missing an
+   > upper bound on the `uv_build` version such as `<0.12`.
+
+   `uv_build` is pre-1.0 and can break between minor versions. Fix:
+   ```toml
+   [build-system]
+   requires = ["uv_build>=0.5,<0.12"]
+   ```
+2. Create a venv and install editable:
+   ```bash
+   uv venv
+   uv pip install -e .
+   ```
+3. Run the installed console script:
+   ```bash
+   .venv/bin/uv-hero --name workshop
+   cat .hello_workshop
+   ```
+4. Self-grade:
+   ```bash
+   make check
+   ```
+
+**Expected:** `dist/uv_hero-0.1.0.tar.gz` and
+`dist/uv_hero-0.1.0-py3-none-any.whl` both present;
+`.venv/bin/uv-hero --name workshop` prints `Hello, workshop!`; the
+sentinel file proves the installed binary ran (not the source script).
+
+**Editable vs regular install:** `uv pip install -e .` symlinks your
+source into the venv's `site-packages` — edit `cli.py`, re-run
+`uv-hero`, see the change immediately. `uv pip install .` would copy
+and require a reinstall after every edit.
+
+**Stretch:** install from the wheel into a throwaway venv to prove the
+artifact works on its own:
+```bash
+uv venv /tmp/uv-hero-test
+/tmp/uv-hero-test/bin/python -m pip install dist/uv_hero-0.1.0-py3-none-any.whl
+/tmp/uv-hero-test/bin/uv-hero --name "from-wheel"
+```
 
 ---
 
@@ -334,7 +467,7 @@ make check                  # runs sync, lint, typecheck, build, CLI
 ```
 
 The `full_solution` branch is the complete `click` CLI — same theme you
-saw on `exec_5` / `exec_6`, plus dev tools wired into the Makefile and a
+saw on `exec_5`..`exec_8`, plus dev tools wired into the Makefile and a
 buildable package layout.
 
 ## Further reading
