@@ -16,7 +16,8 @@ check: ## verify .venv + uv.lock, demo raw python (fails w/o uv add), verify sen
 	@echo "✔ .venv/ present"
 	@test -f uv.lock || { echo "✘ uv.lock missing — uv add normally writes it"; exit 1; }
 	@echo "✔ uv.lock present"
-	.venv/bin/python3.13 hello.py
+	@grep -E '^\s*"click' pyproject.toml >/dev/null \
+	  || .venv/bin/python3.13 hello.py
 	@test -f .hello_world \
 	  || { echo "✘ .hello_world missing — run: uv run hello.py   (the script drops a sentinel so this check knows YOU ran it)"; exit 1; }
 	@grep -q "Hello, World" .hello_world \
