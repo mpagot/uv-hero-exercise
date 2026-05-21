@@ -24,5 +24,4 @@ make check
 5. `uv.lock` exists (uv add rewrites the lockfile after each edit)
 
 `make clean` resets the branch back to the empty-deps seed (drops
-`.venv/`, `uv.lock`, and undoes your `pyproject.toml` edits). Full
-instructions live in `../EXERCISES.md §4`.
+`.venv/`, `uv.lock`, and undoes your `pyproject.toml` edits).
