@@ -9,7 +9,3 @@ dependencies = [
 
 [project.scripts]
 uv-hero = "uv_hero.cli:main"
-
-[build-system]
-requires = ["uv_build>=0.5"]
-build-backend = "uv_build"
